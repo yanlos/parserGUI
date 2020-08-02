@@ -7,22 +7,29 @@ from tkinter.filedialog import *
 import os.path
 
 import os
+import random
+import string
 import subprocess
 
 import telemetryParser as telPar
 import eventLogParser as logPar
 
 
-def openNotebook1():
-    print("pressed")
-    tab_parent = ttk.Notebook(window)
-    tab1 = ttk.Frame(tab_parent)
-    tab_parent.add(tab1, text="TOC1")
-
 
 def smartlog_parse():
     print("works")
     # subprocess.Popen()
+
+# This method reads from the configuration file, or otherwise uses a default directory
+def readDirectoryFromConfigs():
+    if (os.path.exists("./configurations.txt")):
+        f = open(os.getcwd() + "/configurations.txt", "r")
+        personalDirectoryPath = f.readline()
+    else:
+        personalDirectoryPath = os.getcwd()
+
+    return personalDirectoryPath
+
 
 def telem_parser():
     filepath = askopenfilename(
@@ -32,10 +39,8 @@ def telem_parser():
         return
     txt_edit.delete(1.0, tk.END)
 
-    print(filepath)
+    personalDirectoryPath = readDirectoryFromConfigs()
 
-    global personalDirectoryPath
-    print(personalDirectoryPath)
     outputDir = personalDirectoryPath + "\logsNotParsed"
     # outputDir = personalRootDir + "telelog_toolkit/logsNotParsed"
     # telemDir = "C:/Users/Yan_los/Desktop/telemetry/telemetryLog/telemetry.bin "
@@ -100,13 +105,20 @@ def telem_parser():
 
 def parse_log():
 
+    personalDirectoryPath = readDirectoryFromConfigs()
+
     # You can't use ":" so I used dashes
-    logTimestamp = "/"+ strftime("%m-%d-%Y_%H-%M-%S") + "event.log"
+    logTimestamp = "/"+ strftime("%m%d%Y_%H%M%S") + "event.log"
 
     parsedFiles = personalDirectoryPath + "/ParsedFiles"
+    print("The parsed file is at: " + parsedFiles)
     if os.path.exists(parsedFiles):
-        print("here is" + parsedFiles + logTimestamp)
-        os.system("py .\eventLogParser.py -eb " + personalDirectoryPath + "/logsNotParsed/event_log.bin -s .\stringFile.json -on " + parsedFiles + logTimestamp)
+        # print("here is" + parsedFiles + logTimestamp)
+        if (os.path.exists(parsedFiles + logTimestamp)):
+            altLogTimestamp = "/" + strftime("%m%d%Y_%H%M%S") + '(' + ''.join(random.sample(string.ascii_uppercase, 2)) + ')'  + "event.log"
+            os.system("py .\eventLogParser.py -eb " + personalDirectoryPath + "/logsNotParsed/event_log.bin -s .\stringFile.json -on " + parsedFiles + altLogTimestamp)
+        else:
+            os.system("py .\eventLogParser.py -eb " + personalDirectoryPath + "/logsNotParsed/event_log.bin -s .\stringFile.json -on " + parsedFiles + logTimestamp)
     else:
         tk.messagebox.showinfo(title="Created New Folder", message="Created folder to store parsed files! Under: " + parsedFiles)
         os.mkdir(parsedFiles)
@@ -117,8 +129,6 @@ def parse_log():
         text = input_file.read()
         txt_edit.insert(tk.END, text)
         window.title(f"File Open: - {input_file}")
-
-    # print(personalRootDir)
 
     # Get the status of the checkboxes, prints 1 if checked, 0 if not checked
     # Then it puts all the error codes in a list and removes the ones that are unchecked
@@ -226,75 +236,87 @@ def save_file():
     window.title(f"Saved File To - {filepath}")
 
 
-def writeConfig():
-    global dirPath
-    print(dirPath.get())
-    print(os.getcwd())
-    f = open(os.getcwd() + "\configurations.txt", "w")
-    f.write(dirPath.get())
-    f.close()
-
-    if dirPath.get() is not "":
-        currentDirectoryLabel = tk.Label(text="Your current directory is: " + dirPath.get())
-        # print(dirPath.get())
-        # currentDirectoryLabel = tk.Label(text="Your current directory is set")
-        currentDirectoryLabel.grid(row = 3, column = 0)
 
 
+def config_files():
 
-if not (os.path.exists("./configurations.txt")):
     configs = tk.Tk()
 
-    dirPath = StringVar()
-    configs.geometry("450x200")
+    configs.geometry("500x150")
     configs.title("Configurations")
+
+    def writeConfig():
+
+        print("New directory: " + directoryEntry.get())
+        # print(os.getcwd())
+        f = open(os.getcwd() + "\configurations.txt", "w")
+        f.write(directoryEntry.get())
+        f.close()
+        if directoryEntry.get() is not "":
+            currentDirectoryLabel = tk.Label(configs, text="Your current directory is: " + directoryEntry.get())
+            currentDirectoryLabel.grid(row=3, column=0)
+            adviceLabel = tk.Label(configs, text="Make sure to re-parse your file after changing directories")
+            adviceLabel.grid(row=4, column=0)
+
+        personalDirectoryPath = directoryEntry.get()
+
+
     # Label is the text, entry is the empty box, button is the submit button
-    directoryLabel = tk.Label(text="Directory")
+    directoryLabel = tk.Label(configs, text="Directory Output Path: ")
     directoryLabel.grid(row=1, column=0)
 
-    directoryEntry = tk.Entry(textvariable=dirPath)
+    directoryEntry = tk.Entry(configs)
     directoryEntry.grid(row=1, column=1)
 
-    submitButton = tk.Button(text="Submit", command=writeConfig)
+    submitButton = tk.Button(configs, text="Submit", command=writeConfig)
     submitButton.grid(row=2, column=0)
 
+    # user should reparse the telemetry file to the leftest most side after putting in a new directory / configs
+    if (os.path.exists("./configurations.txt")):
+        f = open(os.getcwd() + "\configurations.txt", "r")
+        personalDirectoryPath = f.readline()
+        currentDirectoryLabel = tk.Label(configs, text="Your current directory is: " + personalDirectoryPath)
+        currentDirectoryLabel.grid(row=3, column=0)
     configs.mainloop()
 
-else:
-    window = tk.Tk()
-    window.title("Telemetry GUI")
-
-    f = open(os.getcwd() + "\configurations.txt", "r")
-    personalDirectoryPath = f.readline()
-    print(personalDirectoryPath)
-
-    fr_buttons = tk.Frame(window, relief=tk.RAISED, bd=2)
-
-    btn_open = tk.Button(fr_buttons, text="Open", command=open_file)
-    btn_save = tk.Button(fr_buttons, text="Save File As", command=save_file)
-    btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
-    btn_save.grid(row=1, column=0, sticky="ew", padx=5)
-
-    btn_parse_telemetry = tk.Button(fr_buttons, text="Parse Telemetry File", command=telem_parser)
-    btn_parse_telemetry.grid(row=5, column=0, sticky="nwe", pady=50)
-    btn_parse_smartlog = tk.Button(fr_buttons, text="Parse Smart Log", command = smartlog_parse)
-    btn_parse_smartlog.grid(row=6, column=0, sticky="swe", pady=5)
-    btn_parse_delllog = tk.Button(fr_buttons, text="Parse Dell Log")
-    btn_parse_delllog.grid(row=7, column=0, sticky="swe", pady=5)
-    btn_parse_errorlog = tk.Button(fr_buttons, text="Parse Error Log")
-    btn_parse_errorlog.grid(row=8, column=0, sticky="swe", pady=5)
-    btn_parse_persistentlog = tk.Button(fr_buttons, text="Parse Persistent Log")
-    btn_parse_persistentlog.grid(row=9, column=0, sticky="swe", pady=5)
-    btn_parse_asynceventsupport = tk.Button(fr_buttons, text="Asynchronous Event")
-    btn_parse_asynceventsupport.grid(row=10, column=0, sticky="swe", pady=5)
-    btn_parse_deviceselftest = tk.Button(fr_buttons, text="Run Device Self-Test")
-    btn_parse_deviceselftest.grid(row=11, column=0, sticky="swe", pady=5)
 
 
-    fr_buttons.grid(row=0, column=0, sticky="ns")
-    txt_edit = tk.Text(window)
-    txt_edit.grid(row=0, column=2, sticky="nsew")
 
-    window.mainloop()
+window = tk.Tk()
+window.title("Telemetry GUI")
+
+# If there are no configuration settings then the default is used
+
+personalDirectoryPath = readDirectoryFromConfigs()
+
+fr_buttons = tk.Frame(window, relief=tk.RAISED, bd=2)
+
+btn_open = tk.Button(fr_buttons, text="Open", command=open_file)
+btn_save = tk.Button(fr_buttons, text="Save File As", command=save_file)
+btn_configs = tk.Button(fr_buttons, text="Configurations", command=config_files)
+
+btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+btn_save.grid(row=1, column=0, sticky="ew", padx=5)
+btn_configs.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
+
+btn_parse_telemetry = tk.Button(fr_buttons, text="Parse Telemetry File", command=telem_parser)
+btn_parse_telemetry.grid(row=5, column=0, sticky="nwe", pady=50)
+btn_parse_smartlog = tk.Button(fr_buttons, text="Parse Smart Log", command = smartlog_parse)
+btn_parse_smartlog.grid(row=6, column=0, sticky="swe", pady=5)
+btn_parse_delllog = tk.Button(fr_buttons, text="Parse Dell Log")
+btn_parse_delllog.grid(row=7, column=0, sticky="swe", pady=5)
+btn_parse_errorlog = tk.Button(fr_buttons, text="Parse Error Log")
+btn_parse_errorlog.grid(row=8, column=0, sticky="swe", pady=5)
+btn_parse_persistentlog = tk.Button(fr_buttons, text="Parse Persistent Log")
+btn_parse_persistentlog.grid(row=9, column=0, sticky="swe", pady=5)
+btn_parse_asynceventsupport = tk.Button(fr_buttons, text="Asynchronous Event")
+btn_parse_asynceventsupport.grid(row=10, column=0, sticky="swe", pady=5)
+btn_parse_deviceselftest = tk.Button(fr_buttons, text="Run Device Self-Test")
+btn_parse_deviceselftest.grid(row=11, column=0, sticky="swe", pady=5)
 
 
+fr_buttons.grid(row=0, column=0, sticky="ns")
+txt_edit = tk.Text(window)
+txt_edit.grid(row=0, column=2, sticky="nsew")
+
+window.mainloop()
